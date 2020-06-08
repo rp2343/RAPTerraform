@@ -36,7 +36,9 @@ resource "azurerm_public_ip" "publicip" {
   name                = "${var.prefix}ip${count.index + 1}"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  sku                 = "Standard"
+  zones               = ["${element(var.av_zones,(count.index))}"]
+  allocation_method   = "Static"
   tags                = var.tags
 }
 
@@ -84,27 +86,27 @@ resource "azurerm_virtual_machine" "vm" {
   location              = var.location
   resource_group_name   = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.nic[count.index].id]
-  vm_size               = "Standard_DS4_v3"
+  vm_size               = "Standard_D4s_v3"
 #  zones                 = [element(split(",", var.av_zone), count.index)]
-  zones                 = ["$(var.subnet_prefix, count.index + 1)"]
+  zones                 = ["${element(var.av_zones,(count.index))}"]
   tags                  = var.tags
 
   storage_os_disk {
-    name              = "${var.prefix}OsDisk"
+    name              = "${var.prefix}OsDisk${count.index + 1}"
     caching           = "ReadWrite"
     create_option     = "FromImage"
     managed_disk_type = "Premium_LRS"
   }
 
   storage_image_reference {
-    publisher = "Red Hat"
+    publisher = "RedHat"
     offer     = "RHEL"
     sku       = lookup(var.sku, var.location)
     version   = "latest"
   }
 
   os_profile {
-    computer_name  = "${var.prefix}VM"
+    computer_name  = "${var.prefix}VM${count.index + 1}"
     admin_username = var.admin_username
     admin_password = var.admin_password
   }
