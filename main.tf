@@ -73,9 +73,9 @@ resource "azurerm_network_interface" "nic" {
 
   ip_configuration {
     name                          = "${var.prefix}config${count.index + 1}"
-    subnet_id                     = "${element(azurerm_subnet.subnet.*.id,count.index +1)}"
+    subnet_id                     = "${element(azurerm_subnet.subnet.*.id,count.index)}"
     private_ip_address_allocation = "dynamic"
-    public_ip_address_id          = "${element(azurerm_public_ip.publicip.*.id,count.index +1)}"
+    public_ip_address_id          = "${element(azurerm_public_ip.publicip.*.id,count.index)}"
   }
 }
 
