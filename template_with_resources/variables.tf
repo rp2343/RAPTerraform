@@ -23,7 +23,7 @@ variable "vm_count" {
 
 variable "prefix" {
     type = "string"
-    default = "blackrock"
+    default = "rap"
 }
 
 variable "tags" {
