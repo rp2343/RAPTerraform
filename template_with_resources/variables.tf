@@ -10,20 +10,19 @@ variable "admin_password" {
     description = "Password must meet Azure complexity requirements"
 }
 
-variable "av_zone" {
-    type = "list"
-    default = ["1","2","3"]
+variable "av_zones" {
+    default = ["1", "2", "3"]
 }
 
 variable "vm_count" {
     description = "Count number of VMs"
-    default = "3"
+    default = "6"
 }
 
 
 variable "prefix" {
     type = "string"
-    default = "rap"
+    default = "rock"
 }
 
 variable "tags" {
@@ -41,6 +40,15 @@ variable "sku" {
         eastus = "7.7"
     }
 }
+
+variable "vnet_prefix" {
+  type = "list"
+  default = [
+    {
+      ip      = "10.0.0.0/16"
+    }
+  ]
+}  
 
 variable "subnet_prefix" {
   type = "list"

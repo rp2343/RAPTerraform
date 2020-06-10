@@ -13,8 +13,10 @@ resource "azurerm_resource_group" "rg" {
 
 # Create virtual network
 resource "azurerm_virtual_network" "vnet" {
-  name                = "${var.prefix}Vnet"
-  address_space       = ["10.0.0.0/16"]
+  count               = "${length(var.vnet_prefix)}"
+  name                = "${var.prefix}Vnet${count.index +1}"
+  address_space       = ["${lookup(element(var.vnet_prefix, count.index), "ip")}"]
+#  address_space       = ["10.0.0.0/16"]
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   tags                = var.tags
@@ -26,21 +28,22 @@ resource "azurerm_subnet" "subnet" {
   name                 = "${lookup(element(var.subnet_prefix, count.index), "name")}"
 #  subnet_names         = ["${var.subnet_names}-az1", "${var.subnet_names}-az2", "${var.subnet_names}-az3"]
   resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
+#  virtual_network_name = azurerm_virtual_network.vnet.name
+  virtual_network_name = "${element(azurerm_virtual_network.vnet.*.name,count.index)}"
   address_prefix       = "${lookup(element(var.subnet_prefix, count.index), "ip")}"
 }
 
 # Create public IP
-resource "azurerm_public_ip" "publicip" {
-  count               = "${var.vm_count}"
-  name                = "${var.prefix}ip${count.index + 1}"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "Standard"
-  zones               = ["${element(var.av_zones,(count.index))}"]
-  allocation_method   = "Static"
-  tags                = var.tags
-}
+#resource "azurerm_public_ip" "publicip" {
+#  count               = "${var.vm_count}"
+#  name                = "${var.prefix}ip${count.index + 1}"
+#  location            = var.location
+#  resource_group_name = azurerm_resource_group.rg.name
+#  sku                 = "Standard"
+#  zones               = ["${element(var.av_zones,(count.index))}"]
+#  allocation_method   = "Static"
+#  tags                = var.tags
+#}
 
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "nsg" {
@@ -70,12 +73,13 @@ resource "azurerm_network_interface" "nic" {
   resource_group_name       = azurerm_resource_group.rg.name
 #  network_security_group_id = azurerm_network_security_group.nsg.id
   tags                      = var.tags
+  enable_accelerated_networking	= "true"
 
   ip_configuration {
     name                          = "${var.prefix}config${count.index + 1}"
     subnet_id                     = "${element(azurerm_subnet.subnet.*.id,count.index)}"
     private_ip_address_allocation = "dynamic"
-    public_ip_address_id          = "${element(azurerm_public_ip.publicip.*.id,count.index)}"
+ #   public_ip_address_id          = "${element(azurerm_public_ip.publicip.*.id,count.index)}"
   }
 }
 
@@ -117,15 +121,3 @@ resource "azurerm_virtual_machine" "vm" {
 
 }
 
-#data "azurerm_public_ip" "ip" {
-#  name                = azurerm_public_ip.publicip.name
-#  resource_group_name = azurerm_virtual_machine.vm.resource_group_name
-#}
-
-#output "public_ip_address" {
-#  value = data.azurerm_public_ip.ip.ip_address
-#}
-
-#output "os_sku" {
-#  value = lookup(var.sku, var.location)
-#}

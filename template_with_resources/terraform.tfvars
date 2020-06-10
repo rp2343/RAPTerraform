@@ -1,4 +1,4 @@
 location = "eastus"
-prefix = "rap"
+prefix = "blackrock"
 admin_username = "adminuser"
 admin_password = "Password1234!"
