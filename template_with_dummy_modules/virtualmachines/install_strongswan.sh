@@ -6,7 +6,7 @@ cd /usr/bin
 sudo wget http://www.vdberg.org/~richard/tcpping
 chmod 755 tcpping
 systemctl enable strongswan
-leftsubnet=$(ip route list |grep -i "/" | awk -F " " '{print $1}')
+leftsubnet=$(ip route list |grep -i -m1 "/" | awk -F " " '{print $1}')
 cat << EOF > /etc/strongswan/ipsec.conf
 config setup
         # strictcrlpolicy=yes
