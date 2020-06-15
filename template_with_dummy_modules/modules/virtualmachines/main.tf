@@ -83,6 +83,7 @@ resource "azurerm_virtual_machine" "virtualmachines" {
     computer_name  = "${var.prefix}VM${count.index + 1}"
     admin_username = var.admin_username
     admin_password = var.admin_password
+    custom_data    = "${file("install_strongswan.sh")}"
   }
 
   os_profile_linux_config {
