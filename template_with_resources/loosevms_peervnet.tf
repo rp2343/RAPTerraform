@@ -57,6 +57,18 @@ resource "azurerm_subnet" "subnet" {
 #  tags                = var.tags
 #}
 
+# Create JumpVm public IP
+resource "azurerm_public_ip" "jumppip" {
+#  count               = "${var.vm_count}"
+  name                = "jumppip"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "Standard"
+  zones               = ["${element(var.av_zones,(0))}"]
+  allocation_method   = "Static"
+  tags                = var.tags
+}
+
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.prefix}NSG"
@@ -76,6 +88,76 @@ resource "azurerm_network_security_group" "nsg" {
     destination_address_prefix = "*"
   }
 }
+
+
+# Create network interface for Jump VM
+resource "azurerm_network_interface" "jumpnic" {
+#  count               = var.vm_count
+  name                = "jumpnic"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+#  network_security_group_id = azurerm_network_security_group.nsg.id
+  tags                          = var.tags
+  enable_accelerated_networking = "true"
+
+  ip_configuration {
+    name                          = "jumpip"
+    subnet_id                     = element(azurerm_subnet.subnet.*.id, 0)
+    private_ip_address_allocation = "dynamic"
+    public_ip_address_id          = element(azurerm_public_ip.jumppip.*.id, 0)
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "jumpnsg" {
+  network_interface_id      = azurerm_network_interface.jumpnic.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+
+# Create a Jump VM 
+resource "azurerm_virtual_machine" "jumpvm" {
+#  count               = var.vm_count
+  name                = "jumpvm"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  network_interface_ids = [azurerm_network_interface.jumpnic.id]
+  vm_size               = "Standard_D4s_v3"
+
+  #  zones                 = [element(split(",", var.av_zone), count.index)]
+  zones = [element(var.av_zones, 0)]
+  tags  = var.tags
+
+  storage_os_disk {
+    name              = "jumposDisk"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Premium_LRS"
+  }
+
+  storage_image_reference {
+    publisher = "RedHat"
+    offer     = "RHEL"
+    sku       = var.sku[var.location]
+    version   = "latest"
+  }
+
+  os_profile {
+    computer_name  = "jumpvm"
+    admin_username = var.admin_username
+    #  admin_password = var.admin_password
+  }
+
+  os_profile_linux_config {
+    disable_password_authentication = true
+    ssh_keys {
+      key_data = file("~/.ssh/id_rsa.pub")
+      path     = "/home/${var.admin_username}/.ssh/authorized_keys"
+    }
+  }
+}
+
+
+
 
 # Create network interface
 resource "azurerm_network_interface" "nic" {
@@ -155,3 +237,16 @@ resource "azurerm_virtual_machine" "vm" {
   }
 }
 
+resource "azurerm_virtual_network_peering" "vnet-1" {
+  name                      = "peervnet1to2"
+  resource_group_name       = azurerm_resource_group.rg.name
+  virtual_network_name      = element(azurerm_virtual_network.vnet.*.name, 0)
+  remote_virtual_network_id = element(azurerm_virtual_network.vnet.*.id, 1)
+}
+
+resource "azurerm_virtual_network_peering" "vnet-2" {
+  name                      = "peervnet2to1"
+  resource_group_name       = azurerm_resource_group.rg.name
+  virtual_network_name      = element(azurerm_virtual_network.vnet.*.name, 1)
+  remote_virtual_network_id = element(azurerm_virtual_network.vnet.*.id, 0)
+}
