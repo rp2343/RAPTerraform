@@ -20,6 +20,11 @@ variable "vm_count" {
   default     = "6"
 }
 
+variable "vm_size" {
+  description = "VM Size"
+  default     = "Standard_D15s_v2"
+}
+
 variable "prefix" {
   type    = string
   default = "rock"

@@ -206,7 +206,7 @@ resource "azurerm_virtual_machine" "vm" {
   # brackets to avoid interpretation as a list of lists. If the expression
   # returns a single list item then leave it as-is and remove this TODO comment.
   network_interface_ids = [azurerm_network_interface.nic[count.index].id]
-  vm_size               = "Standard_D4s_v3"
+  vm_size               = var.vm_size
 
   #  zones                 = [element(split(",", var.av_zone), count.index)]
   # TF-UPGRADE-TODO: In Terraform v0.10 and earlier, it was sometimes necessary to
