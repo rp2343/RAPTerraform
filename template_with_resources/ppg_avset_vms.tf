@@ -5,11 +5,17 @@ provider "azurerm" {
   }
 }
 
+data "azurerm_subscription" "current" {}
+
 # Create a resource group
 resource "azurerm_resource_group" "rg" {
   name     = "${var.prefix}RG"
   location = var.location
   tags     = var.tags
+}
+
+data "azurerm_role_definition" "contributor" {
+  name = "Contributor"
 }
 
 # Create virtual network
@@ -76,6 +82,18 @@ resource "azurerm_availability_set" "avset" {
 #  tags                = var.tags
 #}
 
+# Create JumpVm public IP
+resource "azurerm_public_ip" "jumppip" {
+#  count               = "${var.vm_count}"
+  name                = "jumppip"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "Standard"
+  zones               = ["${element(var.av_zones,(0))}"]
+  allocation_method   = "Static"
+  tags                = var.tags
+}
+
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "nsg" {
   name                = "${var.prefix}NSG"
@@ -94,6 +112,80 @@ resource "azurerm_network_security_group" "nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+}
+
+# Create network interface for Jump VM
+resource "azurerm_network_interface" "jumpnic" {
+#  count               = var.vm_count
+  name                = "jumpnic"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  tags                          = var.tags
+  enable_accelerated_networking = "true"
+
+  ip_configuration {
+    name                          = "jumpip"
+    subnet_id                     = element(azurerm_subnet.subnet.*.id, 0)
+    private_ip_address_allocation = "dynamic"
+    public_ip_address_id          = element(azurerm_public_ip.jumppip.*.id, 0)
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "jumpnsg" {
+  network_interface_id      = azurerm_network_interface.jumpnic.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+
+# Create a Jump VM 
+resource "azurerm_virtual_machine" "jumpvm" {
+#  count               = var.vm_count
+  name                = "jumpvm"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  network_interface_ids = [azurerm_network_interface.jumpnic.id]
+  vm_size               = "Standard_D4s_v3"
+  identity {
+    type = "SystemAssigned"
+  }
+
+  zones = [element(var.av_zones, 0)]
+  tags  = var.tags
+
+  storage_os_disk {
+    name              = "jumposDisk"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Premium_LRS"
+  }
+
+  storage_image_reference {
+    publisher = "RedHat"
+    offer     = "RHEL"
+    sku       = var.sku[var.location]
+    version   = "latest"
+  }
+
+  os_profile {
+    computer_name  = "jumpvm"
+    admin_username = var.admin_username
+    custom_data = "${file("jumpvmsetup.sh")}"
+  }
+
+  os_profile_linux_config {
+    disable_password_authentication = true
+    ssh_keys {
+      key_data = file("~/.ssh/id_rsa.pub")
+      path     = "/home/${var.admin_username}/.ssh/authorized_keys"
+    }
+  }
+}
+
+resource "azurerm_role_assignment" "jumprole" {
+#  name               = azurerm_virtual_machine.jumpvm.name
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+  principal_id       = azurerm_virtual_machine.jumpvm.identity[0].principal_id
 }
 
 # Create network interface
@@ -144,6 +236,9 @@ resource "azurerm_virtual_machine" "vm" {
 #  zones = [element(var.av_zones, count.index)]
   availability_set_id   = element(azurerm_availability_set.avset.*.id, count.index)
   tags  = var.tags
+  identity {
+    type = "SystemAssigned"
+  }
 
   storage_os_disk {
     name              = "${var.prefix}OsDisk${count.index + 1}"
@@ -175,3 +270,10 @@ resource "azurerm_virtual_machine" "vm" {
   }
 }
 
+resource "azurerm_role_assignment" "vmroles" {
+  count              = var.vm_count
+#  name               = "${var.prefix}vm${count.index + 1}role"
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+  principal_id       = azurerm_virtual_machine.vm[count.index].identity[0].principal_id
+}

@@ -5,11 +5,17 @@ provider "azurerm" {
   }
 }
 
+data "azurerm_subscription" "current" {}
+
 # Create a resource group
 resource "azurerm_resource_group" "rg" {
   name     = "${var.prefix}RG"
   location = var.location
   tags     = var.tags
+}
+
+data "azurerm_role_definition" "contributor" {
+  name = "Contributor"
 }
 
 # Create virtual network
@@ -122,6 +128,9 @@ resource "azurerm_virtual_machine" "jumpvm" {
   resource_group_name = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.jumpnic.id]
   vm_size               = "Standard_D4s_v3"
+  identity {
+    type = "SystemAssigned"
+  }
 
   #  zones                 = [element(split(",", var.av_zone), count.index)]
   zones = [element(var.av_zones, 0)]
@@ -156,8 +165,12 @@ resource "azurerm_virtual_machine" "jumpvm" {
   }
 }
 
-
-
+resource "azurerm_role_assignment" "jumprole" {
+#  name               = azurerm_virtual_machine.jumpvm.name
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+  principal_id       = azurerm_virtual_machine.jumpvm.identity[0].principal_id
+}
 
 # Create network interface
 resource "azurerm_network_interface" "nic" {
@@ -206,6 +219,9 @@ resource "azurerm_virtual_machine" "vm" {
   # returns a single list item then leave it as-is and remove this TODO comment.
   zones = [element(var.av_zones, count.index)]
   tags  = var.tags
+  identity {
+    type = "SystemAssigned"
+  }
 
   storage_os_disk {
     name              = "${var.prefix}OsDisk${count.index + 1}"
@@ -235,6 +251,14 @@ resource "azurerm_virtual_machine" "vm" {
       path     = "/home/${var.admin_username}/.ssh/authorized_keys"
     }
   }
+}
+
+resource "azurerm_role_assignment" "vmroles" {
+  count              = var.vm_count
+#  name               = "${var.prefix}vm${count.index + 1}role"
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+  principal_id       = azurerm_virtual_machine.vm[count.index].identity[0].principal_id
 }
 
 resource "azurerm_virtual_network_peering" "vnet-1" {

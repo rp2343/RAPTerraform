@@ -6,7 +6,10 @@ cd /usr/bin
 sudo wget http://www.vdberg.org/~richard/tcpping
 chmod 755 tcpping
 yum install -y iperf3
-firewall-cmd --add-port=5201/tcp
+yum install qperf
+firewall-cmd --permanent --add-port=5201/tcp
+firewall-cmd --permanent --add-port=19765/tcp --add-port=19766/tcp
+firewall-cmd --reload
 leftsubnet=$(ip route list |grep -i -m1 "/" | awk -F " " '{print $1}')
 cat << EOF > /etc/strongswan/ipsec.conf
 # ipsec.conf - strongSwan IPsec configuration file
@@ -37,9 +40,11 @@ conn trap-any
     right=%any
     leftsubnet=$leftsubnet
     rightsubnet=$leftsubnet
+    leftportproto=tcp/http,tcp/5201,tcp/19765,tcp/19765
+    rightportproto=tcp/hhtp,tcp/5201,tcp/19765,tcp/19766
     type=transport
     auto=route
-
+    authby=psk
 EOF
 # systemctl start strongswan
 # systemctl enable strongswan
@@ -47,4 +52,11 @@ EOF
 
 cat << EOF >> /etc/strongswan/ipsec.secrets
 : PSK "Microsoft1234$"
+EOF
+
+# Adding local cloud user to sudoers group 
+user=`cat /etc/passwd |grep -i "Cloud User" |awk -F: '{print $1}'`
+usermod -aG wheel $user
+cat << EOF > /etc/sudoers.d/clouduser_sudo
+$user ALL=(ALL) NOPASSWD: ALL
 EOF
