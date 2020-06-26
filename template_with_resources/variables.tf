@@ -41,8 +41,8 @@ variable "tags" {
 
 variable "sku" {
   default = {
-    westus = "7.7"
-    eastus = "7.7"
+    westus = "7.8"
+    eastus = "7.8"
   }
 }
 
