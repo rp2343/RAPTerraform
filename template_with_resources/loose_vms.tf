@@ -133,7 +133,7 @@ resource "azurerm_virtual_machine" "jumpvm" {
   vm_size               = "Standard_D4s_v3"
   identity {
     type = "UserAssigned"
-    identity_ids = ["azurerm_user_assigned_identity.msi.identity[0].principal_id"]
+    identity_ids = ["/subscriptions/${data.azurerm_subscription.current.subscription_id}/resourceGroups/${azurerm_resource_group.rg.name}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${azurerm_user_assigned_identity.msi.name}"]
   }
 
   zones = [element(var.av_zones, 0)]
@@ -156,7 +156,7 @@ resource "azurerm_virtual_machine" "jumpvm" {
   os_profile {
     computer_name  = "jumpvm"
     admin_username = var.admin_username
-    custom_data = "${file("jumpvmsetup.sh")}"
+    custom_data = file("jumpvmsetup.sh")
   }
 
   os_profile_linux_config {
@@ -195,11 +195,11 @@ resource "azurerm_virtual_machine" "vm" {
   resource_group_name = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.nic[count.index].id]
   vm_size               = var.vm_size
- zones = [element(var.av_zones, count.index)]
+  zones = [element(var.av_zones, count.index)]
   tags  = var.tags
   identity {
     type = "UserAssigned"
-    identity_ids = ["azurerm_user_assigned_identity.msi.identity[0].principal_id"]
+    identity_ids = ["/subscriptions/${data.azurerm_subscription.current.subscription_id}/resourceGroups/${azurerm_resource_group.rg.name}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${azurerm_user_assigned_identity.msi.name}"]
   }
 
 
@@ -221,7 +221,7 @@ resource "azurerm_virtual_machine" "vm" {
     computer_name  = "${var.prefix}VM${count.index + 1}"
     admin_username = var.admin_username
     #  admin_password = var.admin_password
-    custom_data = "${file("install_strongswan.sh")}"
+    custom_data = file("install_strongswan.sh")
   }
 
   os_profile_linux_config {

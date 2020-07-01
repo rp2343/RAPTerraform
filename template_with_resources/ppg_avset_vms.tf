@@ -18,20 +18,25 @@ data "azurerm_role_definition" "contributor" {
   name = "Contributor"
 }
 
+resource "azurerm_user_assigned_identity" "msi" {
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+
+  name = "${var.prefix}msi"
+}
+
+resource "azurerm_role_assignment" "msirole" {
+#  name               = azurerm_virtual_machine.jumpvm.name
+  scope              = data.azurerm_subscription.current.id
+  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+  principal_id       = azurerm_user_assigned_identity.msi.principal_id
+}
+
 # Create virtual network
 resource "azurerm_virtual_network" "vnet" {
   count = length(var.vnet_prefix)
   name  = "${var.prefix}Vnet${count.index + 1}"
-  # TF-UPGRADE-TODO: In Terraform v0.10 and earlier, it was sometimes necessary to
-  # force an interpolation expression to be interpreted as a list by wrapping it
-  # in an extra set of list brackets. That form was supported for compatibility in
-  # v0.11, but is no longer supported in Terraform v0.12.
-  #
-  # If the expression in the following list itself returns a list, remove the
-  # brackets to avoid interpretation as a list of lists. If the expression
-  # returns a single list item then leave it as-is and remove this TODO comment.
   address_space = [element(var.vnet_prefix, count.index)["ip"]]
-
   #  address_space       = ["10.0.0.0/16"]
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -42,10 +47,8 @@ resource "azurerm_virtual_network" "vnet" {
 resource "azurerm_subnet" "subnet" {
   count = length(var.subnet_prefix)
   name  = element(var.subnet_prefix, count.index)["name"]
-
   #  subnet_names         = ["${var.subnet_names}-az1", "${var.subnet_names}-az2", "${var.subnet_names}-az3"]
   resource_group_name = azurerm_resource_group.rg.name
-
   #  virtual_network_name = azurerm_virtual_network.vnet.name
   virtual_network_name = element(azurerm_virtual_network.vnet.*.name, count.index)
   address_prefix       = element(var.subnet_prefix, count.index)["ip"]
@@ -146,7 +149,8 @@ resource "azurerm_virtual_machine" "jumpvm" {
   network_interface_ids = [azurerm_network_interface.jumpnic.id]
   vm_size               = "Standard_D4s_v3"
   identity {
-    type = "SystemAssigned"
+    type = "UserAssigned"
+    identity_ids = ["/subscriptions/${data.azurerm_subscription.current.subscription_id}/resourceGroups/${azurerm_resource_group.rg.name}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${azurerm_user_assigned_identity.msi.name}"]
   }
 
   zones = [element(var.av_zones, 0)]
@@ -169,7 +173,7 @@ resource "azurerm_virtual_machine" "jumpvm" {
   os_profile {
     computer_name  = "jumpvm"
     admin_username = var.admin_username
-    custom_data = "${file("jumpvmsetup.sh")}"
+    custom_data = file("jumpvmsetup.sh")
   }
 
   os_profile_linux_config {
@@ -181,12 +185,12 @@ resource "azurerm_virtual_machine" "jumpvm" {
   }
 }
 
-resource "azurerm_role_assignment" "jumprole" {
-#  name               = azurerm_virtual_machine.jumpvm.name
-  scope              = data.azurerm_subscription.current.id
-  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
-  principal_id       = azurerm_virtual_machine.jumpvm.identity[0].principal_id
-}
+# resource "azurerm_role_assignment" "jumprole" {
+# #  name               = azurerm_virtual_machine.jumpvm.name
+#   scope              = data.azurerm_subscription.current.id
+#   role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+#   principal_id       = azurerm_virtual_machine.jumpvm.identity[0].principal_id
+# }
 
 # Create network interface
 resource "azurerm_network_interface" "nic" {
@@ -194,11 +198,9 @@ resource "azurerm_network_interface" "nic" {
   name                = "${var.prefix}nic${count.index + 1}"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-
   #  network_security_group_id = azurerm_network_security_group.nsg.id
   tags                          = var.tags
   enable_accelerated_networking = "true"
-
   ip_configuration {
     name                          = "${var.prefix}config${count.index + 1}"
     subnet_id                     = element(azurerm_subnet.subnet.*.id, count.index)
@@ -213,31 +215,15 @@ resource "azurerm_virtual_machine" "vm" {
   name                = "${var.prefix}vm${count.index + 1}"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  # TF-UPGRADE-TODO: In Terraform v0.10 and earlier, it was sometimes necessary to
-  # force an interpolation expression to be interpreted as a list by wrapping it
-  # in an extra set of list brackets. That form was supported for compatibility in
-  # v0.11, but is no longer supported in Terraform v0.12.
-  #
-  # If the expression in the following list itself returns a list, remove the
-  # brackets to avoid interpretation as a list of lists. If the expression
-  # returns a single list item then leave it as-is and remove this TODO comment.
   network_interface_ids = [azurerm_network_interface.nic[count.index].id]
   vm_size               = var.vm_size
-
   #  zones                 = [element(split(",", var.av_zone), count.index)]
-  # TF-UPGRADE-TODO: In Terraform v0.10 and earlier, it was sometimes necessary to
-  # force an interpolation expression to be interpreted as a list by wrapping it
-  # in an extra set of list brackets. That form was supported for compatibility in
-  # v0.11, but is no longer supported in Terraform v0.12.
-  #
-  # If the expression in the following list itself returns a list, remove the
-  # brackets to avoid interpretation as a list of lists. If the expression
-  # returns a single list item then leave it as-is and remove this TODO comment.
 #  zones = [element(var.av_zones, count.index)]
   availability_set_id   = element(azurerm_availability_set.avset.*.id, count.index)
   tags  = var.tags
   identity {
-    type = "SystemAssigned"
+    type = "UserAssigned"
+    identity_ids = ["/subscriptions/${data.azurerm_subscription.current.subscription_id}/resourceGroups/${azurerm_resource_group.rg.name}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${azurerm_user_assigned_identity.msi.name}"]
   }
 
   storage_os_disk {
@@ -258,7 +244,7 @@ resource "azurerm_virtual_machine" "vm" {
     computer_name  = "${var.prefix}VM${count.index + 1}"
     admin_username = var.admin_username
     #  admin_password = var.admin_password
-    custom_data = "${file("install_strongswan.sh")}"
+    custom_data = file("install_strongswan.sh")
   }
 
   os_profile_linux_config {
@@ -270,10 +256,10 @@ resource "azurerm_virtual_machine" "vm" {
   }
 }
 
-resource "azurerm_role_assignment" "vmroles" {
-  count              = var.vm_count
-#  name               = "${var.prefix}vm${count.index + 1}role"
-  scope              = data.azurerm_subscription.current.id
-  role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
-  principal_id       = azurerm_virtual_machine.vm[count.index].identity[0].principal_id
-}
+# resource "azurerm_role_assignment" "vmroles" {
+#   count              = var.vm_count
+# #  name               = "${var.prefix}vm${count.index + 1}role"
+#   scope              = data.azurerm_subscription.current.id
+#   role_definition_id = "${data.azurerm_subscription.current.id}${data.azurerm_role_definition.contributor.id}"
+#   principal_id       = azurerm_virtual_machine.vm[count.index].identity[0].principal_id
+# }

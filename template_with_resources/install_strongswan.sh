@@ -1,17 +1,14 @@
 #!/bin/bash
 yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum update -y
-yum install -y strongswan iperf3 qperf httpd git autoconf automake 
+yum install -y strongswan iperf3 qperf httpd git autoconf automake gcc-c++
 cd /usr/bin
 sudo wget http://www.vdberg.org/~richard/tcpping
 chmod 755 tcpping
 cd ~; git clone https://github.com/Mellanox/sockperf.git
-cd sockperf; ./autogen.sh; ./configure; make; make install; mv sockperf /usr/loca/bin; cd ~
-firewall-cmd --permanent --add-port=5201/tcp
-firewall-cmd --permanent --add-port=80/tcp
-firewall-cmd --permanent --add-port=19765/tcp --add-port=19766/tcp
-firewall-cmd --permanent --add-port=12345/tcp 
-firewall-cmd --reload
+cd sockperf; ./autogen.sh; ./configure; make; make install; mv sockperf /usr/local/bin; cd ~
+firewall-offline-cmd --add-port=5201/tcp --add-port=80/tcp --add-port=19765/tcp --add-port=19766/tcp --add-port=12345/tcp 
+systemctl enable firewalld; systemctl restart firewalld
 leftsubnet=$(ip route list |grep -i -m1 "/" | awk -F " " '{print $1}')
 cat << EOF > /etc/strongswan/ipsec.conf
 conn %default
