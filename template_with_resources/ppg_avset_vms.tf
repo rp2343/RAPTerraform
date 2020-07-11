@@ -231,7 +231,7 @@ resource "azurerm_network_security_group" "vmnsg" {
   security_rule {
     name                       = "Azure"
     priority                   = 100
-    direction                  = "Outbount"
+    direction                  = "Outbound"
     access                     = "Allow"
     protocol                   = "*"
     source_port_range          = "*"
@@ -243,7 +243,7 @@ resource "azurerm_network_security_group" "vmnsg" {
   security_rule {
     name                       = "Internet"
     priority                   = 110
-    direction                  = "Outbount"
+    direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "*"
     source_port_range          = "*"
@@ -256,6 +256,7 @@ resource "azurerm_network_security_group" "vmnsg" {
 
 
 resource "azurerm_network_interface_security_group_association" "vmnsglink" {
+  count                     = var.vm_count
   network_interface_id      = azurerm_network_interface.nic[count.index].id
   network_security_group_id = azurerm_network_security_group.vmnsg.id
 }

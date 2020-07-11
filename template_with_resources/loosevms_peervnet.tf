@@ -211,7 +211,7 @@ resource "azurerm_network_security_group" "vmnsg" {
   security_rule {
     name                       = "Azure"
     priority                   = 100
-    direction                  = "Outbount"
+    direction                  = "Outbound"
     access                     = "Allow"
     protocol                   = "*"
     source_port_range          = "*"
@@ -223,7 +223,7 @@ resource "azurerm_network_security_group" "vmnsg" {
   security_rule {
     name                       = "Internet"
     priority                   = 110
-    direction                  = "Outbount"
+    direction                  = "Outbound"
     access                     = "Deny"
     protocol                   = "*"
     source_port_range          = "*"
