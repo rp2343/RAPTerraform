@@ -1,4 +1,3 @@
-README :
 Repo has four terraform templates :
 loose_vms.tf - Creates VMs in each Zone within a region within single VNET and 3 subnets mapped to per zone.
 loosevms_peervnet.tf - Creates 2 VNETs in peered configuration. VMs are created in each VNET with Subnet and zone configuration
@@ -18,12 +17,12 @@ This User MSI is also created for Jump VM enabling it to easily run performance 
 
 
 install_strongswan.sh - This script is called as a part custom data script during VM creation. This script installs and configures following :
-	. RHEL EPEL Repo
-	. Installs strongswan iperf3 qperf httpd git tcpping sockperf
-	. Creates OS level firewall rules to allow and open ports for communication of above installed services
-	. Configures strongswan connection settings
-	. Configures strongswan secrets
-	. Adds local user to sudoers group 
+        . RHEL EPEL Repo
+        . Installs strongswan iperf3 qperf httpd git tcpping sockperf
+        . Creates OS level firewall rules to allow and open ports for communication of above installed services
+        . Configures strongswan connection settings
+        . Configures strongswan secrets
+        . Adds local user to sudoers group 
 	
 
 jumpvmsetup.sh - This is a small script with instructions used to install azure cli on the jump VM.
