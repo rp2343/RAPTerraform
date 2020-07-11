@@ -306,7 +306,7 @@ resource "azurerm_network_security_group" "vmnsg" {
     name                       = "Internet"
     priority                   = 110
     direction                  = "Outbound"
-    access                     = "Deny"
+    access                     = "Allow"
     protocol                   = "*"
     source_port_range          = "*"
     destination_port_range     = "*"
