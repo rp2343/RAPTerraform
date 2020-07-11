@@ -11,6 +11,11 @@ firewall-offline-cmd --add-port=5201/tcp --add-port=80/tcp --add-port=19765/tcp 
 systemctl enable firewalld; systemctl restart firewalld
 leftsubnet=$(ip route list |grep -i -m1 "/" | awk -F " " '{print $1}')
 cat << EOF > /etc/strongswan/ipsec.conf
+config setup
+        # strictcrlpolicy=yes
+        uniqueids = yes
+        charondebug="all"
+
 conn %default
         keyexchange=ikev2
         ike=aes128-sha256-ecp256,aes256-sha384-ecp384,aes128-sha256-modp2048,aes128-sha1-modp2048,aes256-sha384-modp4096,aes256-sha256-modp4096,aes256-sha1-modp4096,aes128-sha256-modp1536,aes128-sha1-modp1536,aes256-sha384-modp2048,aes256-sha256-modp2048,aes256-sha1-modp2048,aes128-sha256-modp1024,aes128-sha1-modp1024,aes256-sha384-modp1536,aes256-sha256-modp1536,aes256-sha1-modp1536,aes256-sha384-modp1024,aes256-sha256-modp1024,aes256-sha1-modp1024!
@@ -30,8 +35,24 @@ conn pass-ssh
         type=pass
         auto=route
 
+#conn pass-http
+#        authby=never
+#       left=127.0.0.1
+#       leftsubnet=10.0.0.0/8[tcp/80]
+#        rightsubnet=10.0.0.0/8[tcp]
+#        type=pass
+#        auto=route
+
+conn drop-iperf
+#        authby=never
+        leftsubnet=10.0.0.0/8[tcp/5201]
+        rightsubnet=10.0.0.0/8[tcp]
+        type=drop
+        auto=route
+
 conn trap-any
-        right=%any
+        rightsubnet=10.0.0.0/8
+        leftsubnet=10.0.0.0/8
         type=transport
         authby=psk
         auto=route

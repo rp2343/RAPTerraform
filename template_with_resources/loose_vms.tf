@@ -81,8 +81,8 @@ resource "azurerm_public_ip" "jumppip" {
 }
 
 # Create Network Security Group and rule
-resource "azurerm_network_security_group" "nsg" {
-  name                = "${var.prefix}NSG"
+resource "azurerm_network_security_group" "jumpnsg" {
+  name                = "jumpNSG"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   tags                = var.tags
@@ -117,9 +117,9 @@ resource "azurerm_network_interface" "jumpnic" {
   }
 }
 
-resource "azurerm_network_interface_security_group_association" "jumpnsg" {
+resource "azurerm_network_interface_security_group_association" "jumpnsglink" {
   network_interface_id      = azurerm_network_interface.jumpnic.id
-  network_security_group_id = azurerm_network_security_group.nsg.id
+  network_security_group_id = azurerm_network_security_group.jumpnsg.id
 }
 
 
@@ -128,6 +128,7 @@ resource "azurerm_virtual_machine" "jumpvm" {
 #  count               = var.vm_count
   name                = "jumpvm"
   location            = var.location
+  depends_on		= [azurerm_user_assigned_identity.msi]
   resource_group_name = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.jumpnic.id]
   vm_size               = "Standard_D4s_v3"
@@ -187,6 +188,58 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
+# Create Network Security Group and rule
+resource "azurerm_network_security_group" "vmnsg" {
+  name                = "${var.prefix}NSG"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  tags                = var.tags
+
+  security_rule {
+    name                       = "SSH"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "10.0.0.0/8"
+    destination_address_prefix = "10.0.0.0/8"
+  }
+
+  security_rule {
+    name                       = "Azure"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.0.0/8"
+    destination_address_prefix = "AzureCloud"
+  }
+
+  security_rule {
+    name                       = "Internet"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.0.0/8"
+    destination_address_prefix = "Internet"
+  }
+}
+
+
+
+resource "azurerm_network_interface_security_group_association" "vmnsglink" {
+  count                     = var.vm_count
+  network_interface_id      = element(azurerm_network_interface.nic.*.id, count.index)
+  network_security_group_id = azurerm_network_security_group.vmnsg.id
+}
+
 # Create a Linux virtual machine
 resource "azurerm_virtual_machine" "vm" {
   count               = var.vm_count
@@ -195,6 +248,7 @@ resource "azurerm_virtual_machine" "vm" {
   resource_group_name = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.nic[count.index].id]
   vm_size               = var.vm_size
+  depends_on            = [azurerm_user_assigned_identity.msi]
   zones = [element(var.av_zones, count.index)]
   tags  = var.tags
   identity {
