@@ -2,7 +2,7 @@
 set -x
 RGNAME=blackrockRG
 az login --identity
-az vm list -g $RGNAME -o table |tail -n +3 |grep -v jumpvm |awk '{print $1}' > vmlist
+az vm list -g $RGNAME -o table |tail -n +3 |grep -iv 'jumpvm\|anchrovm' |awk '{print $1}' > vmlist
 for vm in `cat vmlist`; do az vm show -g $RGNAME -d --name $vm --query privateIps -o table |tail -n1 >> iplist; done
 vm1=`cat iplist |head -n1`
 echo "Starting tests test with Strongswan Disabled"
