@@ -35,24 +35,10 @@ conn pass-ssh
         type=pass
         auto=route
 
-#conn pass-http
-#        authby=never
-#       left=127.0.0.1
-#       leftsubnet=10.0.0.0/8[tcp/80]
-#        rightsubnet=10.0.0.0/8[tcp]
-#        type=pass
-#        auto=route
-
-conn drop-iperf
-#        authby=never
-        leftsubnet=10.0.0.0/8[tcp/5201]
-        rightsubnet=10.0.0.0/8[tcp]
-        type=drop
-        auto=route
-
 conn trap-any
+	left=%any
+	right=%any
         rightsubnet=10.0.0.0/8
-        leftsubnet=10.0.0.0/8
         type=transport
         authby=psk
         auto=route
