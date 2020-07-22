@@ -9,6 +9,22 @@ cd ~; git clone https://github.com/Mellanox/sockperf.git
 cd sockperf; ./autogen.sh; ./configure; make; make install; mv sockperf /usr/local/bin; cd ~
 firewall-offline-cmd --add-port=5201/tcp --add-port=80/tcp --add-port=19765/tcp --add-port=19766/tcp --add-port=12345/tcp 
 systemctl enable firewalld; systemctl restart firewalld
+
+certfilename=certificate
+keyfilename=privatekey
+
+accesstoken=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
+
+echo "-----BEGIN CERTIFICATE-----" | sudo tee /etc/strongswan/ipsec.d/certs/$certfilename.pem
+curl -s https://strongswan-keyvault.vault.azure.net/certificates/peer4?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.cer' | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
+echo "-----END CERTIFICATE-----" | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
+
+curl -s https://strongswan-keyvault.vault.azure.net/secrets/peer4?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.value' | sudo tee /etc/strongswan/ipsec.d/private/$keyfilename.pem
+sudo sed -Ei "/-----BEGIN CERTIFICATE/,/END CERTIFICATE-----/d" /etc/strongswan/ipsec.d/private/$keyfilename.pem
+
+echo ": RSA /etc/strongswan/ipsec.d/private/$keyfilename.pem" | sudo tee -a /etc/strongswan/ipsec.secrets
+
+
 leftsubnet=$(ip route list |grep -i -m1 "/" | awk -F " " '{print $1}')
 cat << EOF > /etc/strongswan/ipsec.conf
 config setup
@@ -36,12 +52,13 @@ conn pass-ssh
         auto=route
 
 conn trap-any
-	left=%any
-	right=%any
         rightsubnet=10.0.0.0/8
+        rightcert=certificate2.pem
+        leftsubnet=10.0.0.0/8
+        leftcert=certificate2.pem
         type=transport
-        authby=psk
         auto=route
+
 EOF
 
 # systemctl start strongswan
