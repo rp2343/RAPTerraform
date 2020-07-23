@@ -12,17 +12,25 @@ systemctl enable firewalld; systemctl restart firewalld
 
 certfilename=certificate
 keyfilename=privatekey
+keyvault="https://kvbripsec.vault.azure.net/"
+certificatename=bripseccert
 
 accesstoken=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
 
 echo "-----BEGIN CERTIFICATE-----" | sudo tee /etc/strongswan/ipsec.d/certs/$certfilename.pem
-curl -s https://strongswan-keyvault.vault.azure.net/certificates/peer4?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.cer' | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
+curl -s $keyvault/certificates/$certificatename?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.cer' | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
 echo "-----END CERTIFICATE-----" | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
 
-curl -s https://strongswan-keyvault.vault.azure.net/secrets/peer4?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.value' | sudo tee /etc/strongswan/ipsec.d/private/$keyfilename.pem
+curl -s $keyvault/secrets/$certificatename?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.value' | sudo tee /etc/strongswan/ipsec.d/private/$keyfilename.pem
 sudo sed -Ei "/-----BEGIN CERTIFICATE/,/END CERTIFICATE-----/d" /etc/strongswan/ipsec.d/private/$keyfilename.pem
 
 echo ": RSA /etc/strongswan/ipsec.d/private/$keyfilename.pem" | sudo tee -a /etc/strongswan/ipsec.secrets
+
+sudo sed -Ei "s/leftcert=([a-zA-Z0-9]+.pem)/leftcert=$certfilename.pem/g" /etc/strongswan/ipsec.conf
+sudo sed -Ei "s/rightcert=([a-zA-Z0-9]+.pem)/rightcert=$certfilename.pem/g" /etc/strongswan/ipsec.conf
+
+sudo strongswan rereadsecrets
+sudo strongswan update
 
 
 leftsubnet=$(ip route list |grep -i -m1 "/" | awk -F " " '{print $1}')
@@ -67,6 +75,32 @@ EOF
 
 cat << EOF >> /etc/strongswan/ipsec.secrets
 : PSK "Microsoft1234$"
+EOF
+
+cat << EOF > /home/adminuser/rotate-certs.sh
+
+certfilename=certificate2
+keyfilename=privatekey2
+keyvault="https://kvbripsec.vault.azure.net/"
+certificatename=bripseccert
+
+accesstoken=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
+
+echo "-----BEGIN CERTIFICATE-----" | sudo tee /etc/strongswan/ipsec.d/certs/$certfilename.pem
+curl -s $keyvault/certificates/$certificatename?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.cer' | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
+echo "-----END CERTIFICATE-----" | sudo tee -a /etc/strongswan/ipsec.d/certs/$certfilename.pem
+
+curl -s $keyvault/secrets/$certificatename?api-version=2016-10-01 -H "Authorization: Bearer $accesstoken" | jq -r '.value' | sudo tee /etc/strongswan/ipsec.d/private/$keyfilename.pem
+sudo sed -Ei "/-----BEGIN CERTIFICATE/,/END CERTIFICATE-----/d" /etc/strongswan/ipsec.d/private/$keyfilename.pem
+
+echo ": RSA /etc/strongswan/ipsec.d/private/$keyfilename.pem" | sudo tee -a /etc/strongswan/ipsec.secrets
+
+sudo sed -Ei "s/leftcert=([a-zA-Z0-9]+.pem)/leftcert=$certfilename.pem/g" /etc/strongswan/ipsec.conf
+sudo sed -Ei "s/rightcert=([a-zA-Z0-9]+.pem)/rightcert=$certfilename.pem/g" /etc/strongswan/ipsec.conf
+
+sudo strongswan rereadsecrets
+sudo strongswan update
+
 EOF
 
 # Adding local cloud user to sudoers group 
