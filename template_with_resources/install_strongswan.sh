@@ -61,9 +61,9 @@ conn pass-ssh
 
 conn trap-any
         rightsubnet=10.0.0.0/8
-        rightcert=certificate2.pem
+        rightcert=certificate.pem
         leftsubnet=10.0.0.0/8
-        leftcert=certificate2.pem
+        leftcert=certificate.pem
         type=transport
         auto=route
 
