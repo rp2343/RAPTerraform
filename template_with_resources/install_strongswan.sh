@@ -82,7 +82,7 @@ cat << EOF > /home/adminuser/rotate-certs.sh
 certfilename=certificate2
 keyfilename=privatekey2
 keyvault="https://kvbripsec.vault.azure.net/"
-certificatename=bripseccert
+certificatename=bripseccert2
 
 accesstoken=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
 
