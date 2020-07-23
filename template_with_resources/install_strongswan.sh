@@ -14,7 +14,7 @@ yum -y install jq
 
 certfilename=certificate
 keyfilename=privatekey
-keyvault="https://kvbripsec.vault.azure.net/"
+keyvault="https://kvbripsec.vault.azure.net"
 certificatename=bripseccert
 
 accesstoken=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
