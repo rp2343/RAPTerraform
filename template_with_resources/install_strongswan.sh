@@ -105,6 +105,8 @@ sudo strongswan update
 
 EOF
 
+chmod +x /home/adminuser/rotate-certs.sh
+
 # Adding local cloud user to sudoers group 
 user=`cat /etc/passwd |grep -i "Cloud User" |awk -F: '{print $1}'`
 usermod -aG wheel $user
