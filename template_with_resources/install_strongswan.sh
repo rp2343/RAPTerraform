@@ -10,6 +10,8 @@ cd sockperf; ./autogen.sh; ./configure; make; make install; mv sockperf /usr/loc
 firewall-offline-cmd --add-port=5201/tcp --add-port=80/tcp --add-port=19765/tcp --add-port=19766/tcp --add-port=12345/tcp 
 systemctl enable firewalld; systemctl restart firewalld
 
+yum -y install jq
+
 certfilename=certificate
 keyfilename=privatekey
 keyvault="https://kvbripsec.vault.azure.net/"
