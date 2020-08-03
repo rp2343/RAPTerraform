@@ -6,7 +6,7 @@ Following diagram shows scenario-based port/protocol exclusion
 - Rest of the VMs communicating with server communicate over encrypted channel
 
  
- ![Screenshot](C:\Users\rap\Downloads\IPSEC.png)
+ ![Screenshot](IPSEC.png)
 
 Code snippet for port/protocol exclusion
 
